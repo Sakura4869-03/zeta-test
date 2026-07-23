@@ -42,16 +42,30 @@ input{
     border-radius:10px;
 }
 
+.button-group{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    margin-top:16px;
+}
+
 button{
     width:100%;
-    margin-top:16px;
     padding:16px;
     border:none;
     border-radius:10px;
-    background:#111;
-    color:#fff;
     font-size:17px;
     cursor:pointer;
+}
+
+#openButton{
+    background:#111;
+    color:#fff;
+}
+
+#pasteButton{
+    background:#e8e8e8;
+    color:#111;
 }
 
 #error{
@@ -82,9 +96,14 @@ id="plotUrl"
 type="text"
 placeholder="https://zeta-ai.io/ja/plots/...">
 
-<button id="openButton">
-ZETAアプリで開く
+<div class="button-group">
+<button id="pasteButton">
+📋 ペースト
 </button>
+<button id="openButton">
+🚀 ZETAアプリで開く
+</button>
+</div>
 
 <div id="status"></div>
 <div id="error"></div>
@@ -95,11 +114,12 @@ ZETAアプリで開く
 
 const input=document.getElementById("plotUrl");
 const button=document.getElementById("openButton");
+const pasteButton=document.getElementById("pasteButton");
 const error=document.getElementById("error");
 const status=document.getElementById("status");
 
 button.addEventListener("click",openPlot);
-
+pasteButton.addEventListener("click",pasteClipboard);
 input.addEventListener("keydown",function(e){
     if(e.key==="Enter"){
         openPlot();
@@ -135,6 +155,36 @@ function openPlot(){
     status.textContent="アプリを起動しています...";
 
     window.location.href=appUrl;
+
+}
+async function pasteClipboard(){
+
+    error.textContent="";
+    status.textContent="";
+
+    if(!navigator.clipboard){
+        error.textContent="このブラウザではペースト機能に対応していません";
+        return;
+    }
+
+    try{
+
+        const text=await navigator.clipboard.readText();
+
+        if(!text){
+            error.textContent="クリップボードが空です";
+            return;
+        }
+
+        input.value=text;
+
+        status.textContent="URLを貼り付けました";
+
+    }catch(e){
+
+        error.textContent="クリップボードを読み取れませんでした";
+
+    }
 
 }
 
