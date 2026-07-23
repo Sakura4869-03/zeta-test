@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>ZETAプロットをアプリで開く</title>
+  <title>ZETAプロットを開く</title>
 
   <style>
     * {
@@ -21,7 +21,7 @@
         BlinkMacSystemFont,
         "Helvetica Neue",
         "Yu Gothic",
-        "Meiryo",
+        Meiryo,
         sans-serif;
     }
 
@@ -61,7 +61,7 @@
     }
 
     button,
-    .open-link {
+    .button {
       display: block;
       width: 100%;
       margin-top: 16px;
@@ -77,8 +77,17 @@
       cursor: pointer;
     }
 
-    .open-link {
+    .button {
       display: none;
+    }
+
+    .button.is-visible {
+      display: block;
+    }
+
+    .web-button {
+      background: #e8e8e8;
+      color: #222;
     }
 
     .result {
@@ -95,150 +104,198 @@
     }
 
     .error {
-      margin-top: 12px;
+      margin-top: 14px;
       color: #d00000;
-      line-height: 1.5;
+      line-height: 1.6;
     }
 
-    .web-link {
-      display: none;
-      margin-top: 12px;
-      color: #555;
-      text-align: center;
+    .divider {
+      margin: 28px 0;
+      border: 0;
+      border-top: 1px solid #ddd;
     }
 
-    .web-link.is-visible {
-      display: block;
+    .manual-title {
+      margin: 0 0 12px;
+      font-size: 18px;
     }
   </style>
 </head>
 
 <body>
   <main class="container">
-    <h1>ZETAプロットをアプリで開く</h1>
+    <h1>ZETAプロットを開く</h1>
 
     <p class="description">
-      Xなどに掲載されているZETAのプロットURLを貼り付けてください。
+      指定されたプロットをZETAアプリで開きます。
     </p>
 
-    <label for="plotUrl">ZETAのプロットURL</label>
-
-    <input
-      id="plotUrl"
-      type="url"
-      inputmode="url"
-      placeholder="https://zeta-ai.io/ja/plots/..."
-      autocomplete="off"
-    >
-
-    <button id="createButton" type="button">
-      アプリ用リンクを作成
-    </button>
-
-    <p id="errorMessage" class="error" aria-live="polite"></p>
-
     <div id="result" class="result">
-      <strong>取得したPlot ID</strong>
-      <p id="plotId"></p>
+      <strong>Plot ID</strong>
+      <p id="plotIdText"></p>
     </div>
 
-    <a id="openLink" class="open-link" href="#">
-      ZETAアプリでこのプロットを開く
+    <a id="appLink" class="button" href="#">
+      ZETAアプリで開く
     </a>
 
     <a
       id="webLink"
-      class="web-link"
+      class="button web-button"
       href="#"
       target="_blank"
       rel="noopener noreferrer"
     >
       Web版で開く
     </a>
+
+    <p id="errorMessage" class="error" aria-live="polite"></p>
+
+    <hr class="divider">
+
+    <h2 class="manual-title">別のプロットを開く</h2>
+
+    <label for="plotUrl">
+      ZETAの共有URLまたはPlot ID
+    </label>
+
+    <input
+      id="plotUrl"
+      type="text"
+      inputmode="url"
+      placeholder="https://zeta-ai.io/ja/plots/..."
+      autocomplete="off"
+    >
+
+    <button id="createButton" type="button">
+      リンクを作成
+    </button>
   </main>
 
   <script>
     document.addEventListener('DOMContentLoaded', function () {
       const plotUrlInput = document.getElementById('plotUrl');
       const createButton = document.getElementById('createButton');
-      const errorMessage = document.getElementById('errorMessage');
+
       const result = document.getElementById('result');
-      const plotIdText = document.getElementById('plotId');
-      const openLink = document.getElementById('openLink');
+      const plotIdText = document.getElementById('plotIdText');
+      const appLink = document.getElementById('appLink');
       const webLink = document.getElementById('webLink');
+      const errorMessage = document.getElementById('errorMessage');
+
+      const uuidPattern =
+        /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i;
 
       /**
-       * 入力された文字列からZETAのPlot IDを取得する
-       *
-       * 対応例：
-       * https://zeta-ai.io/ja/plots/UUID/profile
-       * https://zeta-ai.io/ja/plots/UUID/profile?share_id=xxxx
-       * zeta://ja/plots/UUID/profile
-       * UUIDのみ
+       * URLや文字列からPlot IDを取得する
        */
       function extractPlotId(value) {
-        const input = value.trim();
+        if (!value) return null;
 
-        const uuidPattern =
-          /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i;
-
-        const match = input.match(uuidPattern);
+        const match = value.trim().match(uuidPattern);
 
         return match ? match[0] : null;
       }
 
-      function resetResult() {
-        errorMessage.textContent = '';
-        result.classList.remove('is-visible');
-        openLink.style.display = 'none';
-        webLink.classList.remove('is-visible');
-        openLink.setAttribute('href', '#');
-        webLink.setAttribute('href', '#');
-      }
-
-      function createLinks() {
-        resetResult();
-
-        const inputValue = plotUrlInput.value;
-        const plotId = extractPlotId(inputValue);
-
-        if (!inputValue.trim()) {
-          errorMessage.textContent =
-            'ZETAのプロットURLを入力してください。';
-          return;
-        }
-
-        if (!plotId) {
-          errorMessage.textContent =
-            'Plot IDを取得できませんでした。ZETAのプロットURLを確認してください。';
-          return;
-        }
+      /**
+       * Plot IDからアプリ用・Web用リンクを生成する
+       */
+      function displayLinks(plotId) {
+        const encodedPlotId = encodeURIComponent(plotId);
 
         const appUrl =
-          'zeta://ja/plots/' + encodeURIComponent(plotId) + '/profile';
+          'zeta://ja/plots/' + encodedPlotId + '/profile';
 
-        const browserUrl =
+        const webUrl =
           'https://zeta-ai.io/ja/plots/' +
-          encodeURIComponent(plotId) +
+          encodedPlotId +
           '/profile';
 
         plotIdText.textContent = plotId;
 
-        openLink.setAttribute('href', appUrl);
-        webLink.setAttribute('href', browserUrl);
+        appLink.href = appUrl;
+        webLink.href = webUrl;
 
         result.classList.add('is-visible');
-        openLink.style.display = 'block';
+        appLink.classList.add('is-visible');
         webLink.classList.add('is-visible');
+
+        errorMessage.textContent = '';
       }
 
-      createButton.addEventListener('click', createLinks);
+      /**
+       * 表示を初期化する
+       */
+      function resetLinks() {
+        result.classList.remove('is-visible');
+        appLink.classList.remove('is-visible');
+        webLink.classList.remove('is-visible');
+
+        appLink.href = '#';
+        webLink.href = '#';
+
+        errorMessage.textContent = '';
+      }
+
+      /**
+       * 入力内容からリンクを生成する
+       */
+      function createLinksFromInput() {
+        resetLinks();
+
+        const inputValue = plotUrlInput.value.trim();
+
+        if (!inputValue) {
+          errorMessage.textContent =
+            'ZETAの共有URLまたはPlot IDを入力してください。';
+          return;
+        }
+
+        const plotId = extractPlotId(inputValue);
+
+        if (!plotId) {
+          errorMessage.textContent =
+            'Plot IDを取得できませんでした。URLを確認してください。';
+          return;
+        }
+
+        displayLinks(plotId);
+
+        // 作成したIDをURLにも反映
+        const newUrl =
+          window.location.pathname +
+          '?id=' +
+          encodeURIComponent(plotId);
+
+        window.history.replaceState(null, '', newUrl);
+      }
+
+      createButton.addEventListener('click', createLinksFromInput);
 
       plotUrlInput.addEventListener('keydown', function (event) {
         if (event.key === 'Enter') {
-          createLinks();
+          createLinksFromInput();
         }
       });
+
+      /**
+       * ページURLの ?id= または ?url= を読み取る
+       */
+      const params = new URLSearchParams(window.location.search);
+
+      const idParameter = params.get('id');
+      const urlParameter = params.get('url');
+
+      const initialPlotId =
+        extractPlotId(idParameter) ||
+        extractPlotId(urlParameter);
+
+      if (initialPlotId) {
+        displayLinks(initialPlotId);
+      } else if (idParameter || urlParameter) {
+        errorMessage.textContent =
+          'URLに含まれるPlot IDを取得できませんでした。';
+      }
     });
   </script>
 </body>
